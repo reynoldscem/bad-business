@@ -1,4 +1,5 @@
 from urllib.request import urlopen
+from collections import Counter
 from bs4 import BeautifulSoup
 import numpy as np
 import re
@@ -66,7 +67,30 @@ class Item():
         )
 
 
-def main():
+def tag_text(tag):
+    if tag.text == '\xa0':
+        raise Exception
+    else:
+        return tag.text
+
+
+def valid_entry(entry):
+    num_fields = 3
+    space_character = '\xa0'
+
+    if len(entry) != num_fields:
+        return False
+
+    if entry[1].text == space_character:
+        return False
+
+    if entry[2].text == space_character:
+        return False
+
+    return True
+
+
+def get_items():
     response = urlopen(ADVENTURING_GEAR_URL)
     data = response.read()
     soup = BeautifulSoup(data, 'html.parser')
@@ -77,27 +101,6 @@ def main():
         table_row.find_all('td')
         for table_row in table_rows
     ]
-
-    def tag_text(tag):
-        if tag.text == '\xa0':
-            raise Exception
-        else:
-            return tag.text
-
-    def valid_entry(entry):
-        num_fields = 3
-        space_character = '\xa0'
-
-        if len(entry) != num_fields:
-            return False
-
-        if entry[1].text == space_character:
-            return False
-
-        if entry[2].text == space_character:
-            return False
-
-        return True
 
     table_entries = [
         list(map(tag_text, entry))
@@ -110,17 +113,21 @@ def main():
         for (name, cost, weight) in table_entries
     ]
 
+    return items
+
+
+def get_configuration(items, cost_budget_gp, weight_budget_lbs):
     ratios = [item.cost_ratio for item in items]
     ratio_total = sum(ratios)
     normalised_ratios = np.array(ratios) / ratio_total
 
-    cost_budget = 250 * 100
-    weight_budget = 420
+    cost_budget = cost_budget_gp * 100
+    weight_budget = weight_budget_lbs
 
     current_cost = 0
     current_weight = 0
 
-    max_violations = 100
+    max_violations = 200
 
     probability_to_choose_uniformly = 0.9
 
@@ -144,7 +151,34 @@ def main():
         current_weight += next_item.weight
         selected_items.append(next_item)
 
-    from collections import Counter
+    return selected_items, current_cost, current_weight
+
+
+def main():
+    items = get_items()
+
+    max_attempts = 150
+    gold_budget = 250
+    lbs_budget = 420 + 190
+
+    candidate, candidate_cost, candidate_weight = None, None, None
+    for i in range(max_attempts):
+        selected_items, cost, weight = get_configuration(
+            items, gold_budget, lbs_budget
+        )
+
+        if candidate is None:
+            candidate = selected_items
+            candidate_cost = cost
+            candidate_weight = weight
+
+        if (weight > candidate_weight and candidate_cost >= cost):
+            candidate = selected_items
+            candidate_cost = cost
+            candidate_weight = weight
+
+    selected_items, cost, weight = candidate, candidate_cost, candidate_weight
+
     print('Name | Cost | Weight | Count')
     print('--- | --- | --- | ---')
 
@@ -164,9 +198,9 @@ def main():
         )
 
     print()
-    print('Total weight:\t{:.2f} lbs.'.format(current_weight))
+    print('Total weight:\t{:.2f} lbs.'.format(weight))
     print()
-    print('Total cost:\t{:.2f} gp'.format(current_cost / 100))
+    print('Total cost:\t{:.2f} gp'.format(cost / 100))
 
 
 if __name__ == '__main__':
