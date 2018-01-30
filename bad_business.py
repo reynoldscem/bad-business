@@ -145,16 +145,28 @@ def main():
         selected_items.append(next_item)
 
     from collections import Counter
-    for item, count in Counter(selected_items).items():
-        if count > 1:
-            print('{} units of:'.format(count))
-        print(item)
+    print('Name | Cost | Weight | Count')
+    print('--- | --- | --- | ---')
 
+    def sorter(item_count_tuple):
+        item, count = item_count_tuple
+        return item.cost_ratio * count
+
+    rows = sorted(
+        Counter(selected_items).items(),
+        key=sorter,
+        reverse=True
+    )
+    for item, count in rows:
+        print(
+            '{} | {:.2f} gp | {:.2f} lbs. | {}'
+            ''.format(item.name, item.cost, item.weight, count)
+        )
+
+    print()
     print('Total weight:\t{:.2f} lbs.'.format(current_weight))
+    print()
     print('Total cost:\t{:.2f} gp'.format(current_cost / 100))
-
-    import IPython
-    IPython.embed()
 
 
 if __name__ == '__main__':
