@@ -127,9 +127,9 @@ def get_configuration(items, cost_budget_gp, weight_budget_lbs):
     current_cost = 0
     current_weight = 0
 
-    max_violations = 200
+    max_violations = 100
 
-    probability_to_choose_uniformly = 0.9
+    probability_to_choose_uniformly = 0.95
 
     violations = 0
     selected_items = []
@@ -157,25 +157,31 @@ def get_configuration(items, cost_budget_gp, weight_budget_lbs):
 def main():
     items = get_items()
 
-    max_attempts = 150
+    max_attempts = 250
     gold_budget = 250
     lbs_budget = 420 + 190
 
-    candidate, candidate_cost, candidate_weight = None, None, None
+    candidate, candidate_cost, candidate_weight, candidate_fill_quotient = (
+        None, None, None, None
+    )
     for i in range(max_attempts):
         selected_items, cost, weight = get_configuration(
             items, gold_budget, lbs_budget
         )
 
+        fill_quotient = weight / lbs_budget + cost / gold_budget
         if candidate is None:
             candidate = selected_items
             candidate_cost = cost
             candidate_weight = weight
+            candidate_fill_quotient = fill_quotient
+            continue
 
-        if (weight > candidate_weight and candidate_cost >= cost):
+        if fill_quotient > candidate_fill_quotient:
             candidate = selected_items
             candidate_cost = cost
             candidate_weight = weight
+            candidate_fill_quotient = fill_quotient
 
     selected_items, cost, weight = candidate, candidate_cost, candidate_weight
 
@@ -194,7 +200,7 @@ def main():
     for item, count in rows:
         print(
             '{} | {:.2f} gp | {:.2f} lbs. | {}'
-            ''.format(item.name, item.cost, item.weight, count)
+            ''.format(item.name, item.cost / 100, item.weight, count)
         )
 
     print()
